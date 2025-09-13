@@ -1,14 +1,7 @@
-import React, { useState } from "react";
-import { Search, Star, Pencil, MessageSquare } from "lucide-react";
-
-const storeData = [
-  { id: 1, name: "The Bookworm's Nook", address: "123 Reading Rd, Booksville", overallRating: 4.8, userRating: 0, review: "" },
-  { id: 2, name: "Café de Paris", address: "456 French St, Paris", overallRating: 4.5, userRating: 0, review: "" },
-  { id: 3, name: "Urban Tech Hub", address: "789 Innovation Ave, Technocity", overallRating: 4.9, userRating: 0, review: "" },
-  { id: 4, name: "Green Leaf Florist", address: "101 Blossom Lane, Garden City", overallRating: 4.2, userRating: 0, review: "" },
-  { id: 5, name: "Vintage Records", address: "202 Vinyl Blvd, Retroville", overallRating: 4.7, userRating: 0, review: "" },
-  { id: 6, name: "Gourmet Grocers", address: "303 Market St, Foodtown", overallRating: 4.6, userRating: 0, review: "" },
-];
+import React, { useState, useContext, useEffect } from "react";
+import { Search, Star, Pencil } from "lucide-react";
+import { UserContext } from "./Context";
+import axios from "axios";
 
 // ⭐ Reusable Star Rating Component
 const StarRating = ({ rating, totalStars = 5 }) => (
@@ -20,7 +13,9 @@ const StarRating = ({ rating, totalStars = 5 }) => (
           key={starValue}
           size={20}
           className={`${
-            starValue <= rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"
+            starValue <= rating
+              ? "text-yellow-400 fill-yellow-400"
+              : "text-gray-300"
           } transition-colors duration-200`}
         />
       );
@@ -29,20 +24,21 @@ const StarRating = ({ rating, totalStars = 5 }) => (
 );
 
 // 🏬 Store Card
-const StoreCard = ({ store, onRatingChange, onReviewSubmit }) => {
+const StoreCard = ({ store, userRating, onRatingSubmit }) => {
   const [isRatingMode, setIsRatingMode] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
-  const [isReviewMode, setIsReviewMode] = useState(false);
-  const [reviewText, setReviewText] = useState(store.review || "");
 
-  const handleRatingClick = (newRating) => {
-    onRatingChange(store.id, newRating);
+  // Sync internal state with userRating prop.
+  // This ensures the stars in the rating form update when the user's rating changes.
+  const [ratingValue, setRatingValue] = useState(userRating?.rating || 0);
+  useEffect(() => {
+    setRatingValue(userRating?.rating || 0);
+  }, [userRating]);
+
+  const handleRatingClick = async (value) => {
+    // Call the parent component's function to handle the API call and state update
+    await onRatingSubmit(store.id, value);
     setIsRatingMode(false);
-  };
-
-  const handleReviewSubmit = () => {
-    onReviewSubmit(store.id, reviewText);
-    setIsReviewMode(false);
   };
 
   return (
@@ -65,79 +61,44 @@ const StoreCard = ({ store, onRatingChange, onReviewSubmit }) => {
       {/* Overall Rating */}
       <div className="flex items-center mb-4">
         <span className="text-gray-700 font-semibold mr-2">Overall:</span>
-        <StarRating rating={store.overallRating} />
-        <span className="ml-2 text-sm font-medium text-gray-600">({store.overallRating})</span>
+        <StarRating rating={store.average || 0} />
+        <span className="ml-2 text-sm font-medium text-gray-600">
+          ({(store.average || 0).toFixed(1) || "none"})
+        </span>
       </div>
 
       {/* User Rating */}
-      <div className="flex items-center mb-4">
+      <div className="mb-4">
         <span className="text-gray-700 font-semibold mr-2">Your Rating:</span>
-        {!isRatingMode ? (
-          store.userRating > 0 ? (
-            <StarRating rating={store.userRating} />
-          ) : (
-            <span className="text-sm text-gray-500 italic">Not rated</span>
-          )
+        {userRating ? (
+          <StarRating rating={userRating.rating} />
         ) : (
-          <div className="flex items-center">
-            {[...Array(5)].map((_, index) => {
-              const ratingValue = index + 1;
-              return (
-                <Star
-                  key={ratingValue}
-                  size={24}
-                  className={`cursor-pointer transition-colors duration-200 ${
-                    ratingValue <= (hoverRating || store.userRating)
-                      ? "text-yellow-400 fill-yellow-400"
-                      : "text-gray-300"
-                  }`}
-                  onMouseEnter={() => setHoverRating(ratingValue)}
-                  onMouseLeave={() => setHoverRating(0)}
-                  onClick={() => handleRatingClick(ratingValue)}
-                />
-              );
-            })}
-          </div>
+          <span className="text-sm text-gray-500 italic">Not rated</span>
         )}
       </div>
 
-      {/* Review Section */}
-      {!isReviewMode ? (
-        <div>
-          {store.review ? (
-            <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">{store.review}</p>
-          ) : (
-            <button
-              onClick={() => setIsReviewMode(true)}
-              className="mt-2 flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium"
-            >
-              <MessageSquare size={16} />
-              Write a Review
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="mt-3">
-          <textarea
-            rows="3"
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
-            placeholder="Write your review..."
-            value={reviewText}
-            onChange={(e) => setReviewText(e.target.value)}
-          />
-          <div className="flex justify-end gap-3 mt-2">
-            <button
-              onClick={() => setIsReviewMode(false)}
-              className="text-gray-500 hover:text-gray-700 text-sm font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleReviewSubmit}
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium transition-colors"
-            >
-              Submit
-            </button>
+      {/* Rating Form */}
+      {isRatingMode && (
+        <div className="space-y-3">
+          {/* Star Picker */}
+          <div className="flex items-center">
+            {[...Array(5)].map((_, index) => {
+              const value = index + 1;
+              return (
+                <Star
+                  key={value}
+                  size={24}
+                  className={`cursor-pointer ${
+                    value <= (hoverRating || ratingValue)
+                      ? "text-yellow-400 fill-yellow-400"
+                      : "text-gray-300"
+                  }`}
+                  onMouseEnter={() => setHoverRating(value)}
+                  onMouseLeave={() => setHoverRating(0)}
+                  onClick={() => handleRatingClick(value)}
+                />
+              );
+            })}
           </div>
         </div>
       )}
@@ -148,25 +109,101 @@ const StoreCard = ({ store, onRatingChange, onReviewSubmit }) => {
 // 📄 Main Store Page
 const StorePage = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [stores, setStores] = useState(storeData);
+  const { user, allStores, setAllStoresData } = useContext(UserContext);
 
-  const handleRatingChange = (storeId, newRating) => {
-    setStores((prevStores) =>
-      prevStores.map((store) =>
-        store.id === storeId ? { ...store, userRating: newRating } : store
-      )
-    );
+  // We'll manage a single source of truth for all store data,
+  // including average ratings.
+  const [storesWithRatings, setStoresWithRatings] = useState([]);
+
+  // This function will fetch all ratings, calculate averages, and update the state.
+  const fetchRatingsAndStores = async () => {
+    try {
+      // Fetch all ratings from the API
+      const ratingsResponse = await axios.get("http://localhost:5000/api/v1/store_app/get-ratings");
+      const ratings = ratingsResponse.data?.ratings || [];
+
+      // Create a map to easily look up ratings and calculate averages
+      const storeRatingsMap = {};
+      const userRatingsMap = {};
+
+      ratings.forEach((rating) => {
+        if (!storeRatingsMap[rating.store_id]) {
+          storeRatingsMap[rating.store_id] = [];
+        }
+        storeRatingsMap[rating.store_id].push(rating.rating);
+
+        // Map the user's specific ratings for quick lookup
+        if (user && rating.user_id === user.id) {
+          userRatingsMap[rating.store_id] = { rating: rating.rating };
+        }
+      });
+
+      // Update the allStores context with average ratings
+      const updatedStores = allStores.map((store) => {
+        const storeRatings = storeRatingsMap[store.id] || [];
+        const average =
+          storeRatings.length > 0
+            ? storeRatings.reduce((sum, r) => sum + r, 0) / storeRatings.length
+            : 0;
+        return {
+          ...store,
+          average,
+          // Attach the current user's rating to the store object for easy access
+          userRating: userRatingsMap[store.id] || null,
+        };
+      });
+
+      // Update the local state with the processed data.
+      setStoresWithRatings(updatedStores);
+      
+    } catch (error) {
+      console.error("Error fetching ratings:", error);
+      alert("Error fetching ratings");
+    }
   };
 
-  const handleReviewSubmit = (storeId, reviewText) => {
-    setStores((prevStores) =>
-      prevStores.map((store) =>
-        store.id === storeId ? { ...store, review: reviewText } : store
-      )
-    );
+  // Initial data fetch and also whenever allStores data is available
+  useEffect(() => {
+    // Only fetch if allStores is not empty to prevent multiple calls
+    // on initial component load.
+    if (allStores && allStores.length > 0) {
+      fetchRatingsAndStores();
+    }
+  }, [allStores, user]);
+
+  const handleRatingSubmit = async (storeId, rating) => {
+    const token = localStorage.getItem('token')
+    if(!token){
+      alert('Login First')
+      return
+    }
+    try {
+
+      const res = await fetch(`http://localhost:5000/api/v1/store_app/add-rating/${storeId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ rating }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        alert("Rating submitted successfully!");
+        // Re-fetch all data to ensure the average is updated
+        fetchRatingsAndStores();
+      } else {
+        alert(data.message || "Failed to submit rating");
+      }
+    } catch (err) {
+      console.error("Error submitting rating:", err);
+      alert("Error submitting rating");
+    }
   };
 
-  const filteredStores = stores.filter(
+  const filteredStores = storesWithRatings.filter(
     (store) =>
       store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       store.address.toLowerCase().includes(searchTerm.toLowerCase())
@@ -180,7 +217,8 @@ const StorePage = () => {
           All Stores
         </h1>
         <p className="text-lg text-gray-600 text-center mb-10 max-w-2xl mx-auto">
-          Explore all registered stores. Search by name or address, rate them, and share your reviews to help the community.
+          Explore all registered stores. Search by name or address, rate them,
+          and share your reviews to help the community.
         </p>
 
         {/* Search */}
@@ -205,8 +243,8 @@ const StorePage = () => {
               <StoreCard
                 key={store.id}
                 store={store}
-                onRatingChange={handleRatingChange}
-                onReviewSubmit={handleReviewSubmit}
+                userRating={store.userRating}
+                onRatingSubmit={handleRatingSubmit}
               />
             ))
           ) : (

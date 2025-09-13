@@ -1,40 +1,43 @@
 import React from 'react';
 import { Users, Store, Star, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-
+import { UserContext } from "./Context.jsx";
+import { useContext } from 'react';
 // Mock data for the dashboard
-const mockStats = {
-    totalUsers: 1250,
-    totalStores: 89,
-    totalRatings: 5432,
-};
 
-const mockRecentActivity = [
-    { id: 1, user: "Alice C.", store: "Artisan Coffee", rating: 5, date: "2 hours ago" },
-    { id: 2, user: "Bob F.", store: "Gourmet Grocers", rating: 4, date: "1 day ago" },
-    { id: 3, user: "Charlie D.", store: "Tech Gadgets", rating: 3, date: "2 days ago" },
-    { id: 4, user: "David E.", store: "Artisan Coffee", rating: 5, date: "3 days ago" },
-    { id: 5, user: "Eve A.", store: "Gourmet Grocers", rating: 5, date: "4 days ago" },
-];
-
-const mockChartData = {
-    ratingsPerStore: [
-        { name: 'Gourmet Grocers', ratings: 250 },
-        { name: 'Tech Gadgets', ratings: 180 },
-        { name: 'Artisan Coffee', ratings: 320 },
-        { name: 'Fashion Hub', ratings: 150 },
-        { name: 'Book Nook', ratings: 210 },
-    ],
-    userRoles: [
-        { name: 'Normal Users', value: 1000 },
-        { name: 'Store Owners', value: 200 },
-        { name: 'Admins', value: 50 },
-    ],
-};
-
-const COLORS = ['#8884d8', '#82ca9d', '#ffc658'];
 
 const ReportsDashboardPage = () => {
+    const { user, allUsers, resetUserData, allStores } = useContext(UserContext);
+    const mockStats = {
+        totalUsers: allUsers.length,
+        totalStores: allStores.length,
+        totalRatings: 5432,
+    };
+
+    const mockRecentActivity = [
+        { id: 1, user: "Alice C.", store: "Artisan Coffee", rating: 5, date: "2 hours ago" },
+        { id: 2, user: "Bob F.", store: "Gourmet Grocers", rating: 4, date: "1 day ago" },
+        { id: 3, user: "Charlie D.", store: "Tech Gadgets", rating: 3, date: "2 days ago" },
+        { id: 4, user: "David E.", store: "Artisan Coffee", rating: 5, date: "3 days ago" },
+        { id: 5, user: "Eve A.", store: "Gourmet Grocers", rating: 5, date: "4 days ago" },
+    ];
+
+    const mockChartData = {
+        ratingsPerStore: [
+            { name: 'Gourmet Grocers', ratings: 250 },
+            { name: 'Tech Gadgets', ratings: 180 },
+            { name: 'Artisan Coffee', ratings: 320 },
+            { name: 'Fashion Hub', ratings: 150 },
+            { name: 'Book Nook', ratings: 210 },
+        ],
+        userRoles: [
+            { name: 'Normal Users', value:  allUsers.filter(data=>data.type=='Normal User').length },
+            { name: 'Store Owners', value: allUsers.filter(data=>data.type=='Store Owner').length},
+            { name: 'Admins', value: allUsers.filter(data=>data.type=='System Administrator').length },
+        ],
+    };
+
+    const COLORS = ['#8884d8', '#82ca9d', '#ffc658'];
     return (
         <div className="min-h-screen bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">

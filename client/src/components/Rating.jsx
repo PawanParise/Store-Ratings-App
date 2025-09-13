@@ -1,51 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { Star, Edit, MapPin } from "lucide-react";
-
-// Mock data to simulate user's ratings from a database
-const mockUserRatings = [
-    {
-        id: 1,
-        storeName: "The Book Nook",
-        storeAddress: "123 Main Street, Pune",
-        userRating: 4,
-        overallRating: 4.5,
-    },
-    {
-        id: 2,
-        storeName: "Fresh Groceries",
-        storeAddress: "456 Market Road, Pune",
-        userRating: 5,
-        overallRating: 4.8,
-    },
-    {
-        id: 3,
-        storeName: "Tech Gadgets",
-        storeAddress: "789 Elm Street, Pune",
-        userRating: 3,
-        overallRating: 3.9,
-    },
-    {
-        id: 4,
-        storeName: "Artisan Coffee",
-        storeAddress: "101 Cafe Lane, Pune",
-        userRating: 5,
-        overallRating: 4.7,
-    },
-    {
-        id: 5,
-        storeName: "Green Leaf Florist",
-        storeAddress: "222 Garden City, Pune",
-        userRating: 4,
-        overallRating: 4.1,
-    },
-    {
-        id: 6,
-        storeName: "Gourmet Grocers",
-        storeAddress: "303 Market St, Foodtown, Pune",
-        userRating: 5,
-        overallRating: 4.9,
-    },
-];
+import { UserContext } from "./Context";
+import axios from "axios";
 
 // ⭐ Reusable Star Rating Component
 const StarRating = ({ rating, totalStars = 5 }) => {
@@ -55,10 +11,19 @@ const StarRating = ({ rating, totalStars = 5 }) => {
     return (
         <div className="flex items-center">
             {[...Array(fullStars)].map((_, index) => (
-                <Star key={`full-${index}`} size={20} className="text-yellow-400 fill-yellow-400" />
+                <Star
+                    key={`full-${index}`}
+                    size={20}
+                    className="text-yellow-400 fill-yellow-400"
+                />
             ))}
             {hasHalfStar && (
-                <Star key="half" size={20} className="text-yellow-400 fill-yellow-400" style={{ clipPath: 'inset(0 50% 0 0)' }} />
+                <Star
+                    key="half"
+                    size={20}
+                    className="text-yellow-400 fill-yellow-400"
+                    style={{ clipPath: "inset(0 50% 0 0)" }}
+                />
             )}
             {[...Array(totalStars - Math.ceil(rating))].map((_, index) => (
                 <Star key={`empty-${index}`} size={20} className="text-gray-300" />
@@ -72,9 +37,10 @@ const MyRatingCard = ({ rating, onRatingChange }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [hoverRating, setHoverRating] = useState(0);
 
-    const handleRatingClick = (newRating) => {
-        onRatingChange(rating.id, newRating);
-        setIsEditing(false);
+    const handleRatingClick = async (newRating) => {
+        // Call the parent component's function to handle the API update
+        await onRatingChange(rating.store_id, newRating);
+        setIsEditing(false); // Close edit mode after submission
     };
 
     return (
@@ -97,18 +63,20 @@ const MyRatingCard = ({ rating, onRatingChange }) => {
                 </button>
             </div>
 
-            {/* Overall Rating */}
+            {/* Overall Rating (assuming the API provides this) */}
             <div className="flex items-center mb-2">
                 <span className="text-gray-700 font-semibold mr-2">Overall:</span>
-                <StarRating rating={rating.overallRating} />
-                <span className="ml-2 text-sm font-medium text-gray-600">({rating.overallRating})</span>
+                <StarRating rating={rating.overallRating || 0} />
+                <span className="ml-2 text-sm font-medium text-gray-600">
+                    ({(rating.overallRating || 0).toFixed(1)})
+                </span>
             </div>
 
             {/* Your Rating */}
             <div className="flex items-center">
                 <span className="text-gray-700 font-semibold mr-2">Your Rating:</span>
                 {!isEditing ? (
-                    <StarRating rating={rating.userRating} />
+                    <StarRating rating={rating.rating} />
                 ) : (
                     <div className="flex items-center">
                         {[...Array(5)].map((_, index) => {
@@ -118,7 +86,7 @@ const MyRatingCard = ({ rating, onRatingChange }) => {
                                     key={starValue}
                                     size={24}
                                     className={`cursor-pointer transition-colors duration-200 ${
-                                        starValue <= (hoverRating || rating.userRating)
+                                        starValue <= (hoverRating || rating.rating)
                                             ? "text-yellow-400 fill-yellow-400"
                                             : "text-gray-300"
                                     }`}
@@ -133,7 +101,9 @@ const MyRatingCard = ({ rating, onRatingChange }) => {
             </div>
             {!isEditing && (
                 <div className="mt-2">
-                    <span className="text-sm font-medium text-gray-600">({rating.userRating})</span>
+                    <span className="text-sm font-medium text-gray-600">
+                        ({rating.rating})
+                    </span>
                 </div>
             )}
         </div>
@@ -142,16 +112,94 @@ const MyRatingCard = ({ rating, onRatingChange }) => {
 
 // 📄 Main My Ratings Page
 const MyRatings = () => {
-    const [ratings, setRatings] = useState(mockUserRatings);
+    const { user, allStores } = useContext(UserContext);
+    const [ratings, setRatings] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const handleRatingChange = (storeId, newRating) => {
-        setRatings((prevRatings) =>
-            prevRatings.map((rating) =>
-                rating.id === storeId ? { ...rating, userRating: newRating } : rating
-            )
-        );
-        alert(`Rating for store ID ${storeId} updated to ${newRating}.`);
+    const fetchMyRatings = async () => {
+        setIsLoading(true);
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                console.error("No authentication token found.");
+                setIsLoading(false);
+                return;
+            }
+            // Fetch ratings specifically for the logged-in user
+            const response = await axios.get("http://localhost:5000/api/v1/store_app/user-ratings", {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            // Assuming the API returns a list of ratings with store details
+            const myRatingsData = response.data;
+            
+            // Map the fetched ratings to match the component's expected data structure
+            const processedRatings = myRatingsData.map(rating => {
+                // Find the corresponding store from the allStores context
+                const store = allStores.find(s => s.id === rating.store_id);
+                // Assuming the backend provides overall average, otherwise calculate it
+                const overallRating = store ? store.average : 0;
+                
+                return {
+                    ...rating,
+                    storeName: store ? store.name : "Unknown Store",
+                    storeAddress: store ? store.address : "N/A",
+                    overallRating: overallRating,
+                };
+            });
+            
+            setRatings(processedRatings);
+        } catch (error) {
+            console.error("Error fetching user ratings:", error);
+            alert("Error fetching your ratings.");
+        } finally {
+            setIsLoading(false);
+        }
     };
+
+    const handleRatingChange = async (storeId, newRating) => {
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`http://localhost:5000/api/v1/store_app/add-rating/${storeId}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ rating: newRating }),
+            });
+
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                alert("Rating updated successfully!");
+                // Re-fetch ratings to update the UI with the latest data
+                fetchMyRatings();
+            } else {
+                alert(data.message || "Failed to update rating.");
+            }
+        } catch (err) {
+            console.error("Error updating rating:", err);
+            alert("Error updating rating.");
+        }
+    };
+
+    // Fetch ratings when the component mounts or when the user changes
+    useEffect(() => {
+        if (user && allStores && allStores.length > 0) {
+            fetchMyRatings();
+        }
+    }, [user, allStores]);
+
+    if (isLoading) {
+        return (
+            <div className="py-16 px-4 bg-gray-50 min-h-screen flex items-center justify-center">
+                <p className="text-gray-500">Loading your ratings...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="py-16 px-4 bg-gray-50 min-h-screen">

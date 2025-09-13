@@ -1,144 +1,160 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Users,
     Store,
     Star,
     Plus,
-    Key,
-    User,
     LogOut,
-    Eye,
     Edit,
     Trash2,
-    Search,
-    ChevronDown,
-    PieChart,
     BarChart,
-    LineChart,
-    UserPlus,
+    PieChart,
 } from "lucide-react";
+import { UserContext } from "./Context";
+import { useContext } from "react";
 
-// Mock data to simulate fetching from a database
-const mockUsers = [
-    { id: 1, name: "Alice Johnson", email: "alice.j@example.com", address: "456 Oak Ave", role: "Normal User" },
-    { id: 2, name: "Bob Smith", email: "bob.s@example.com", address: "789 Pine Ln", role: "Store Owner", rating: 4.5 },
-    { id: 3, name: "Charlie Brown", email: "charlie.b@example.com", address: "101 Maple St", role: "Admin" },
-    { id: 4, name: "Diana Prince", email: "diana.p@example.com", address: "202 Birch Blvd", role: "Normal User" },
-];
-
-const mockStores = [
-    { id: 101, name: "The Book Nook", email: "books@example.com", address: "321 Main Rd", rating: 4.8 },
-    { id: 102, name: "Fresh Groceries", email: "fresh@example.com", address: "654 Market St", rating: 4.2 },
-    { id: 103, name: "Tech Gadgets", email: "tech@example.com", address: "987 Elm Dr", rating: 3.9 },
-];
+// 🌐 API Base URL (adjust this to your backend server)
+const API_BASE = "http://localhost:5000/api/admin";
 
 const AdminDashboard = () => {
-    const [users, setUsers] = useState(mockUsers);
-    const [stores, setStores] = useState(mockStores);
+    const [users, setUsers] = useState([]);
+    const [stores, setStores] = useState([])
+    const [owners, setOwners] = useState([]); // only store owners
 
-    // Form state for adding a new user
+    const { allUsers, setAllUserData, allStores } = useContext(UserContext)
+
+    // Forms
     const [newUser, setNewUser] = useState({
         name: "",
         email: "",
         password: "",
         address: "",
-        role: "Normal User",
+        type: "Normal User",
     });
-
-    // Form state for adding a new store
     const [newStore, setNewStore] = useState({
         name: "",
-        email: "",
         address: "",
+        owner_id: "",
     });
 
-    // Handle form input changes
-    const handleUserChange = (e) => {
-        const { name, value } = e.target;
-        setNewUser((prev) => ({ ...prev, [name]: value }));
+    // Load Users & Stores
+    useEffect(() => {
+        fetch(`http://localhost:5000/api/v1/store_app/get-users`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (data?.allUsers) {
+                    setUsers(data.allUsers); // ✅ set all users
+                    setAllUserData(data.allUsers)
+                    setOwners(data.allUsers.filter((u) => u.type === "Store Owner")); // ✅ filter store owners
+                }
+            })
+            .catch((err) => console.error("Error fetching users:", err));
+
+        fetch(`http://localhost:5000/api/v1/store_app/get-stores`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (data?.allStores) {
+                    setStores(data.allStores); // ✅ set all users
+
+                }
+            })
+            .catch((err) => console.error("Error fetching stores:", err));
+
+    }, []);
+
+    const validate = () => {
+        if (!newUser.name || newUser.name.length < 3) {
+            alert("Name must be at least 3 characters.");
+            return false;
+        }
+        if (!/^\S+@\S+\.\S+$/.test(newUser.email)) {
+            alert("Invalid email format.");
+            return false;
+        }
+        if (!newUser.address || newUser.address.length > 400) {
+            alert("Address max 400 chars.");
+            return false;
+        }
+        if (
+            !newUser.password ||
+            newUser.password.length < 8 ||
+            !/[A-Z]/.test(newUser.password) ||
+            !/[!@#$%^&*(),.?":{}|<>]/.test(newUser.password)
+        ) {
+            alert("Password must be 8+ chars with uppercase and special char.");
+            return false;
+        }
+        return true;
     };
 
-    const handleStoreChange = (e) => {
-        const { name, value } = e.target;
-        setNewStore((prev) => ({ ...prev, [name]: value }));
-    };
 
-    // Handle form submission
-    const handleAddUser = (e) => {
+    // Handle Add User
+    const handleAddUser = async (e) => {
         e.preventDefault();
-        // In a real app, this would be an API call
-        console.log("Adding new user:", newUser);
-        setUsers((prev) => [...prev, { ...newUser, id: prev.length + 1 }]);
-        setNewUser({ name: "", email: "", password: "", address: "", role: "Normal User" });
+        if (!validate()) {
+            return
+        }
+        try {
+            const res = await fetch(`http://localhost:5000/api/v1/store_app/sign-up`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newUser),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setUsers((prev) => [...prev, data]);
+                setNewUser({
+                    name: "",
+                    email: "",
+                    password: "",
+                    address: "",
+                    type: "Normal User",
+                });
+                alert('User added Successfully')
+            } else {
+                alert(data.message || "Error adding user");
+            }
+        } catch (err) {
+            console.error("Error adding user:", err);
+        }
     };
 
-    const handleAddStore = (e) => {
+    // Handle Add Store
+    const handleAddStore = async (e) => {
         e.preventDefault();
-        // In a real app, this would be an API call
-        console.log("Adding new store:", newStore);
-        setStores((prev) => [...prev, { ...newStore, id: prev.length + 100, rating: null }]);
-        setNewStore({ name: "", email: "", address: "" });
+        try {
+            const res = await fetch(`http://localhost:5000/api/v1/store_app/add-store`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(newStore),
+            });
+            const data = await res.json();
+            if (res.status === 201) {
+                setStores((prev) => [...prev, data]);
+                setNewStore({ name: "", address: "", owner_id: "" });
+                alert('Store added Successfully');
+            } else {
+                alert(data.message || "Error adding store");
+            }
+        } catch (err) {
+            console.error("Error adding store:", err);
+        }
     };
 
-    // Handle actions on tables
-    const handleDeleteUser = (id) => {
-        console.log("Deleting user with id:", id);
-        setUsers(users.filter((user) => user.id !== id));
-    };
 
-    const handleDeleteStore = (id) => {
-        console.log("Deleting store with id:", id);
-        setStores(stores.filter((store) => store.id !== id));
-    };
-
-    // Mock data for charts
-    const chartData = {
-        userRoles: {
-            labels: ["Normal Users", "Store Owners", "Admins"],
-            values: [2, 1, 1], // Based on mockUsers data
-            colors: ["#6366f1", "#f59e0b", "#3b82f6"],
-        },
-        ratingsOverTime: {
-            data: [
-                { month: "Jan", ratings: 50 },
-                { month: "Feb", ratings: 75 },
-                { month: "Mar", ratings: 60 },
-                { month: "Apr", ratings: 90 },
-                { month: "May", ratings: 80 },
-            ],
-        },
-        topStores: {
-            data: [
-                { name: "The Book Nook", rating: 4.8 },
-                { name: "Fresh Groceries", rating: 4.2 },
-                { name: "Tech Gadgets", rating: 3.9 },
-            ],
-        },
-    };
 
     return (
         <div className="py-16 px-4 bg-gray-50 min-h-screen">
             <div className="max-w-7xl mx-auto">
-                {/* Header and Admin Profile */}
+                {/* Header */}
                 <div className="flex justify-between items-center mb-12">
-                    <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
+                    <h1 className="text-4xl font-extrabold text-gray-900">
                         Admin Dashboard
                     </h1>
-                    <div className="flex items-center gap-4">
-                        <div className="hidden sm:block text-right">
-                            <p className="font-semibold text-gray-800">Welcome, Admin</p>
-                            <p className="text-sm text-gray-500">admin@storerating.com</p>
-                        </div>
-                        <button
-                            onClick={() => console.log("Logging out...")}
-                            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white font-semibold rounded-xl shadow-md hover:bg-red-600 transition"
-                        >
-                            <LogOut size={20} /> <span className="hidden sm:inline">Logout</span>
-                        </button>
-                    </div>
+                     
                 </div>
 
-                {/* Dashboard Overview Cards */}
+                {/* Dashboard Stats */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
                     <div className="bg-white p-6 rounded-2xl shadow-md flex items-center gap-4">
                         <div className="p-3 bg-indigo-100 rounded-full">
@@ -146,7 +162,9 @@ const AdminDashboard = () => {
                         </div>
                         <div>
                             <p className="text-gray-500">Total Users</p>
-                            <h2 className="text-3xl font-bold text-gray-900">{users.length}</h2>
+                            <h2 className="text-3xl font-bold text-gray-900">
+                                {users.length}
+                            </h2>
                         </div>
                     </div>
                     <div className="bg-white p-6 rounded-2xl shadow-md flex items-center gap-4">
@@ -155,7 +173,9 @@ const AdminDashboard = () => {
                         </div>
                         <div>
                             <p className="text-gray-500">Total Stores</p>
-                            <h2 className="text-3xl font-bold text-gray-900">{stores.length}</h2>
+                            <h2 className="text-3xl font-bold text-gray-900">
+                                {stores.length}
+                            </h2>
                         </div>
                     </div>
                     <div className="bg-white p-6 rounded-2xl shadow-md flex items-center gap-4">
@@ -171,177 +191,175 @@ const AdminDashboard = () => {
 
                 {/* User & Store Management */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                    {/* User Management Section */}
+                    {/* User Management */}
                     <div className="bg-white p-8 rounded-2xl shadow-md">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                             <Users /> User Management
                         </h2>
-                        {/* Add New User Form */}
-                        <div className="mb-8 p-6 bg-gray-50 rounded-xl">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                                <UserPlus size={20} /> Add New User
-                            </h3>
-                            <form onSubmit={handleAddUser} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" name="name" placeholder="Full Name" value={newUser.name} onChange={handleUserChange} required className="rounded-md border-gray-300 transition" />
-                                <input type="email" name="email" placeholder="Email" value={newUser.email} onChange={handleUserChange} required className="rounded-md border-gray-300 transition" />
-                                <input type="password" name="password" placeholder="Password" value={newUser.password} onChange={handleUserChange} required className="rounded-md border-gray-300 transition" />
-                                <input type="text" name="address" placeholder="Address" value={newUser.address} onChange={handleUserChange} required className="rounded-md border-gray-300 transition" />
-                                <select name="role" value={newUser.role} onChange={handleUserChange} className="rounded-md border-gray-300 transition col-span-1 md:col-span-2">
-                                    <option>Normal User</option>
-                                    <option>Store Owner</option>
-                                    <option>Admin</option>
-                                </select>
-                                <button type="submit" className="flex items-center justify-center gap-2 col-span-1 md:col-span-2 py-2 px-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition">
-                                    <Plus size={18} /> Add User
-                                </button>
-                            </form>
-                        </div>
-                        {/* User List Table */}
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">User List</h3>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full bg-white rounded-xl shadow-sm">
-                                <thead className="bg-gray-100">
-                                    <tr>
-                                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600">Name</th>
-                                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600">Email</th>
-                                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600">Role</th>
-                                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {users.map((user) => (
-                                        <tr key={user.id} className="border-t border-gray-200 hover:bg-gray-50 transition">
-                                            <td className="px-4 py-3 text-sm text-gray-800">{user.name}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-800">{user.email}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-800">
-                                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                                    user.role === "Admin" ? "bg-blue-100 text-blue-800" :
-                                                    user.role === "Store Owner" ? "bg-yellow-100 text-yellow-800" :
-                                                    "bg-gray-100 text-gray-800"
-                                                }`}>
-                                                    {user.role}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-800 flex gap-2">
-                                                <button className="text-gray-500 hover:text-indigo-600 transition" title="Edit">
-                                                    <Edit size={18} />
-                                                </button>
-                                                <button onClick={() => handleDeleteUser(user.id)} className="text-gray-500 hover:text-red-600 transition" title="Delete">
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+
+                        {/* Add User Form */}
+                        <form
+                            onSubmit={handleAddUser}
+                            className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"
+                        >
+                            <input
+                                type="text"
+                                name="name"
+                                placeholder="Full Name"
+                                value={newUser.name}
+                                onChange={(e) =>
+                                    setNewUser({ ...newUser, name: e.target.value })
+                                }
+                                required
+                            />
+                            <input
+                                type="email"
+                                name="email"
+                                placeholder="Email"
+                                value={newUser.email}
+                                onChange={(e) =>
+                                    setNewUser({ ...newUser, email: e.target.value })
+                                }
+                                required
+                            />
+                            <input
+                                type="password"
+                                name="password"
+                                placeholder="Password"
+                                value={newUser.password}
+                                onChange={(e) =>
+                                    setNewUser({ ...newUser, password: e.target.value })
+                                }
+                                autoComplete="new-password"
+                                required
+                            />
+                            <input
+                                type="text"
+                                name="address"
+                                placeholder="Address"
+                                value={newUser.address}
+                                onChange={(e) =>
+                                    setNewUser({ ...newUser, address: e.target.value })
+                                }
+                                required
+                            />
+                            <select
+                                name="type"
+                                value={newUser.type}
+                                onChange={(e) =>
+                                    setNewUser({ ...newUser, type: e.target.value })
+                                }
+                            >
+                                <option value="Normal User">Normal User</option>
+                                <option value="Store Owner">Store Owner</option>
+                                <option value="System Administrator">System Administrator</option>
+                            </select>
+                            <button
+                                type="submit"
+                                className="col-span-2 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700"
+                            >
+                                <Plus size={18} /> Add User
+                            </button>
+                        </form>
+
+                        {/* User Table */}
+
                     </div>
 
-                    {/* Store Management Section */}
+                    {/* Store Management */}
                     <div className="bg-white p-8 rounded-2xl shadow-md">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                             <Store /> Store Management
                         </h2>
-                        {/* Add New Store Form */}
-                        <div className="mb-8 p-6 bg-gray-50 rounded-xl">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                                <Plus size={20} /> Add New Store
-                            </h3>
-                            <form onSubmit={handleAddStore} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input type="text" name="name" placeholder="Store Name" value={newStore.name} onChange={handleStoreChange} required className="rounded-md border-gray-300 transition" />
-                                <input type="email" name="email" placeholder="Email (Optional)" value={newStore.email} onChange={handleStoreChange} className="rounded-md border-gray-300 transition" />
-                                <input type="text" name="address" placeholder="Address" value={newStore.address} onChange={handleStoreChange} required className="rounded-md border-gray-300 transition" />
-                                <button type="submit" className="flex items-center justify-center gap-2 col-span-1 md:col-span-2 py-2 px-4 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition">
-                                    <Plus size={18} /> Add Store
-                                </button>
-                            </form>
-                        </div>
-                        {/* Store List Table */}
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">Store List</h3>
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full bg-white rounded-xl shadow-sm">
-                                <thead className="bg-gray-100">
-                                    <tr>
-                                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600">Store Name</th>
-                                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600">Overall Rating</th>
-                                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-600">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {stores.map((store) => (
-                                        <tr key={store.id} className="border-t border-gray-200 hover:bg-gray-50 transition">
-                                            <td className="px-4 py-3 text-sm text-gray-800">{store.name}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-800 flex items-center gap-1">
-                                                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                                <span>{store.rating || "N/A"}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-gray-800 flex gap-2">
-                                                <button className="text-gray-500 hover:text-indigo-600 transition" title="Edit">
-                                                    <Edit size={18} />
-                                                </button>
-                                                <button onClick={() => handleDeleteStore(store.id)} className="text-gray-500 hover:text-red-600 transition" title="Delete">
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </td>
-                                        </tr>
+
+                        {/* Add Store Form */}
+                        <form
+                            onSubmit={handleAddStore}
+                            className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6"
+                        >
+                            <input
+                                type="text"
+                                name="name"
+                                placeholder="Store Name"
+                                value={newStore.name}
+                                onChange={(e) =>
+                                    setNewStore({ ...newStore, name: e.target.value })
+                                }
+                                required
+                            />
+                            <input
+                                type="text"
+                                name="address"
+                                placeholder="Address"
+                                value={newStore.address}
+                                onChange={(e) =>
+                                    setNewStore({ ...newStore, address: e.target.value })
+                                }
+                                required
+                            />
+                            <select
+                                name="owner_id"
+                                value={newStore.owner_id}
+                                onChange={(e) => setNewStore({ ...newStore, owner_id: e.target.value })}
+                            >
+                                <option value="">Assign Store Owner</option>
+                                {
+                                    owners.map((u) => (
+                                        <option key={u.id} value={u.id}>
+                                            {u.name} ({u.email})
+                                        </option>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
+                            </select>
+                            <button
+                                type="submit"
+                                className="col-span-2 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700"
+                            >
+                                <Plus size={18} /> Add Store
+                            </button>
+                        </form>
+
+                        {/* Store Table */}
+
                     </div>
                 </div>
 
                 {/* Reports Section */}
-                <div className="mt-16">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-8 flex items-center gap-2">
-                        <BarChart /> Reports
-                    </h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                        {/* User Distribution Chart */}
-                        <div className="bg-white p-8 rounded-2xl shadow-md">
-                            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                <PieChart size={20} /> Distribution of Users by Role
-                            </h3>
-                            <div className="flex flex-col items-center">
-                                <div className="w-48 h-48 relative">
-                                    <div className="absolute inset-0 rounded-full border-[1.5rem] border-indigo-600" style={{ clipPath: "polygon(50% 0%, 50% 50%, 100% 0%, 100% 50%, 100% 100%, 50% 100%)" }}></div>
-                                    <div className="absolute inset-0 rounded-full border-[1.5rem] border-yellow-500" style={{ clipPath: "polygon(0% 0%, 50% 0%, 50% 50%, 0% 50%, 0% 100%, 50% 100%, 50% 50%)" }}></div>
-                                    <div className="absolute inset-0 rounded-full border-[1.5rem] border-blue-500" style={{ clipPath: "polygon(0% 0%, 50% 0%, 50% 50%)" }}></div>
-                                </div>
-                                <div className="mt-6 space-y-2">
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-3 h-3 rounded-full bg-indigo-600"></span>
-                                        <span className="text-gray-600">Normal Users (50%)</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-3 h-3 rounded-full bg-yellow-500"></span>
-                                        <span className="text-gray-600">Store Owners (25%)</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-                                        <span className="text-gray-600">Admins (25%)</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Top Rated Stores Chart */}
-                        <div className="bg-white p-8 rounded-2xl shadow-md">
-                            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                <Star size={20} /> Top Rated Stores
-                            </h3>
-                            <div className="h-64 flex flex-col justify-end gap-2 p-4">
-                                {chartData.topStores.data.map((store, index) => (
-                                    <div key={index} className="flex items-center gap-4">
-                                        <span className="w-32 text-sm font-medium text-gray-800">{store.name}</span>
-                                        <div className="bg-green-400 h-8 rounded-full" style={{ width: `${(store.rating / 5) * 100}%` }}></div>
-                                        <span className="text-sm font-bold text-gray-800">{store.rating}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                <div className="text-center mb-10">
+                    <h1 className="text-4xl font-extrabold text-gray-900">Reports & Insights</h1>
+                    <p className="mt-2 text-lg text-gray-600">
+                        Track system performance and user activity.
+                    </p>
+                </div>
+
+                {/* Stats Overview Cards */}
+                <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-lg border-l-4 border-red-500">
+                    <h2 className="text-2xl font-bold mb-4">Admin Dashboard</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <a
+                            href="/admin/users"
+                            className="bg-gray-800 hover:bg-gray-700 transition-colors p-4 rounded-lg text-center"
+                        >
+                            <Users size={32} className="text-indigo-400 mx-auto mb-2" />
+                            <p className="font-semibold">Manage Users</p>
+                        </a>
+                        <a
+                            href="/admin/stores"
+                            className="bg-gray-800 hover:bg-gray-700 transition-colors p-4 rounded-lg text-center"
+                        >
+                            <Store size={32} className="text-yellow-400 mx-auto mb-2" />
+                            <p className="font-semibold">Manage Stores</p>
+                        </a>
+                        <a
+                            href="/admin/reports"
+                            className="bg-gray-800 hover:bg-gray-700 transition-colors p-4 rounded-lg text-center"
+                        >
+                            <Star size={32} className="text-green-400 mx-auto mb-2" />
+                            <p className="font-semibold">System Reports</p>
+                        </a>
                     </div>
                 </div>
+
             </div>
         </div>
     );

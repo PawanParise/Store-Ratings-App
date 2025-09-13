@@ -25,7 +25,7 @@ export const isAuthenticated = async (req, res, next) => {
     console.log("Decoded JWT:", decoded);
 
     const [results] = await pool.execute(
-      "SELECT id, name, email, type FROM users WHERE id = ?",
+      "SELECT id, name, email,address, type FROM users WHERE id = ?",
       [decoded.id]
     );
 
@@ -42,3 +42,5 @@ export const isAuthenticated = async (req, res, next) => {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
+
+

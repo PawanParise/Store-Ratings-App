@@ -1,32 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { User, Star, Mail, MapPin, Lock, Key } from 'lucide-react';
-
-const mockUserData = {
-    name: "John Smith",
-    email: "john.smith@example.com",
-    address: "123 Maple Street, Pune, India",
-    role: "Normal User",
-    totalRatingsSubmitted: 12,
-    recentRatings: [
-        { id: 1, storeName: "Gourmet Grocers", rating: 5, date: "2023-10-25" },
-        { id: 2, storeName: "Tech Gadgets", rating: 3, date: "2023-10-24" },
-        { id: 3, storeName: "Artisan Coffee", rating: 5, date: "2023-10-23" },
-    ],
-};
-
-// Helper to render star icons
-const renderStars = (rating) => {
-    const fullStars = Math.floor(rating);
-    const stars = [];
-    for (let i = 0; i < fullStars; i++) {
-        stars.push(<Star key={i} size={16} className="text-yellow-400 fill-yellow-400" />);
-    }
-    const remainingStars = 5 - fullStars;
-    for (let i = 0; i < remainingStars; i++) {
-        stars.push(<Star key={i + fullStars} size={16} className="text-gray-600" />);
-    }
-    return <div className="flex items-center">{stars}</div>;
-};
+import axios from 'axios';
+import { UserContext } from "./Context.jsx";
 
 const NormalUserProfilePage = () => {
     const [isPasswordChange, setIsPasswordChange] = useState(false);
@@ -35,60 +10,171 @@ const NormalUserProfilePage = () => {
         newPassword: '',
         confirmNewPassword: ''
     });
+    const [userData, setUserData] = useState(null);
+    const [recentRatings, setRecentRatings] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [message, setMessage] = useState(null);
+
+    const { user, resetUserData } = useContext(UserContext);
+
+    // Function to show a temporary message
+    const showMessage = (msg) => {
+        setMessage(msg);
+        setTimeout(() => setMessage(null), 3000);
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setPasswordData(prevState => ({ ...prevState, [name]: value }));
     };
 
-    const handlePasswordUpdate = (e) => {
+    const fetchUserProfile = async () => {
+        if (!user || !user.id) {
+            setIsLoading(false);
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                showMessage("Authentication token not found.");
+                return;
+            }
+
+            const  response = await
+                axios.get(`http://localhost:5000/api/v1/store_app/user-ratings`, {
+                    headers: { Authorization: `Bearer ${token}` }
+
+                });
+
+
+            setUserData(user);
+
+            const sortedRatings = response.data
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 3);
+            setRecentRatings(sortedRatings);
+
+        } catch (err) {
+            console.error(err);
+            showMessage("Failed to fetch user data. Please try again.");
+            setUserData(null);
+            setRecentRatings([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUserProfile();
+    }, [user]);
+
+    const handlePasswordUpdate = async (e) => {
         e.preventDefault();
-        // In a real app, this would call an API to update the password
-        alert('Password update initiated. Check the console for mock data.');
-        console.log('Password change request:', passwordData);
-        setPasswordData({ oldPassword: '', newPassword: '', confirmNewPassword: '' });
-        setIsPasswordChange(false);
+        if (passwordData.newPassword !== passwordData.confirmNewPassword) {
+            showMessage("New password and confirm password do not match.");
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                showMessage("Authentication token not found.");
+                return;
+            }
+
+            const res = await axios.put(`http://localhost:5000/api/v1/store_app/change-password/${user.id}`, {
+                oldPassword: passwordData.oldPassword,
+                newPassword: passwordData.newPassword
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (res.data.success) {
+                showMessage("Password updated successfully!");
+                setPasswordData({ oldPassword: '', newPassword: '', confirmNewPassword: '' });
+                setIsPasswordChange(false);
+            } else {
+                showMessage(res.data.message || "Failed to update password.");
+            }
+        } catch (err) {
+            console.error(err);
+            showMessage(err.response.data.message);
+             
+        }
     };
 
     const handleLogout = () => {
-        // In a real app, this would handle the user logout process
-        alert('Logging out...');
+        resetUserData();
+        localStorage.removeItem('token');
         window.location.href = '/login';
     };
+
+    const renderStars = (rating) => {
+        const fullStars = Math.floor(rating);
+        const stars = [];
+        for (let i = 0; i < fullStars; i++) {
+            stars.push(<Star key={i} size={16} className="text-yellow-400 fill-yellow-400" />);
+        }
+        const remainingStars = 5 - fullStars;
+        for (let i = 0; i < remainingStars; i++) {
+            stars.push(<Star key={i + fullStars} size={16} className="text-gray-600" />);
+        }
+        return <div className="flex items-center">{stars}</div>;
+    };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <p className="text-lg text-gray-500">Loading user profile...</p>
+            </div>
+        );
+    }
+
+    if (!userData) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <p className="text-lg text-red-500">Failed to load profile data.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
-                {/* Header */}
+                {message && (
+                    <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-indigo-600 text-white p-4 rounded-lg shadow-xl z-50 transition-opacity duration-300">
+                        {message}
+                    </div>
+                )}
                 <div className="text-center mb-10">
-                    <h1 className="text-4xl font-extrabold text-gray-900">Welcome, {mockUserData.name} 🎉</h1>
+                    <h1 className="text-4xl font-extrabold text-gray-900">Welcome, {userData.name || 'User'} 🎉</h1>
                     <p className="mt-2 text-lg text-gray-600">
                         Manage your profile and see your activity on StoreRating.
                     </p>
                 </div>
 
-                {/* Main Content: Two-column layout */}
-                <div className="lg:grid lg:grid-cols-3 lg:gap-8">
-                    {/* Left Panel: User Info */}
+                <div className=" relative lg:grid lg:grid-cols-3 lg:gap-8">
                     <div className="lg:col-span-1 mb-8 lg:mb-0">
                         <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-lg">
                             <div className="flex items-center mb-4">
                                 <User size={40} className="text-indigo-400" />
                                 <div className="ml-4">
-                                    <h2 className="text-2xl font-bold">{mockUserData.name}</h2>
+                                    <h2 className="text-2xl font-bold">{userData.name || 'N/A'}</h2>
                                     <span className="text-indigo-400 font-semibold text-sm">
-                                        {mockUserData.role}
+                                        {userData.type || 'N/A'}
                                     </span>
                                 </div>
                             </div>
                             <div className="space-y-3 text-gray-300">
                                 <div className="flex items-center gap-2">
                                     <Mail size={20} className="text-gray-500" />
-                                    <span>{mockUserData.email}</span>
+                                    <span>{userData.email || 'N/A'}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <MapPin size={20} className="text-gray-500" />
-                                    <span>{mockUserData.address}</span>
+                                    <span>{userData.address || 'N/A'}</span>
                                 </div>
                             </div>
                             <div className="mt-8">
@@ -110,43 +196,44 @@ const NormalUserProfilePage = () => {
                         </div>
                     </div>
 
-                    {/* Right Panel: Activity Summary & Stats */}
                     <div className="lg:col-span-2">
                         <div className="space-y-8">
-                            {/* User Activity Summary */}
                             <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-lg">
                                 <h2 className="text-2xl font-bold mb-4">Your Activity</h2>
                                 <div className="bg-gray-800 p-4 rounded-xl flex flex-col items-center sm:items-start text-center sm:text-left">
                                     <span className="text-gray-400 text-sm">Total Ratings Submitted</span>
-                                    <p className="text-3xl font-bold mt-1">{mockUserData.totalRatingsSubmitted}</p>
+                                    <p className="text-3xl font-bold mt-1">{recentRatings.length || 0}</p>
                                 </div>
 
-                                {/* Recent Ratings Snapshot */}
                                 <div className="mt-8">
                                     <h3 className="text-lg font-semibold mb-2">Recent Ratings</h3>
-                                    <ul className="space-y-2">
-                                        {mockUserData.recentRatings.map((rating) => (
-                                            <li key={rating.id} className="bg-gray-800 p-3 rounded-lg flex justify-between items-center">
-                                                <div className="flex items-center">
-                                                    <span className="text-sm font-medium">{rating.storeName}</span>
-                                                    <div className="ml-3">
-                                                        {renderStars(rating.rating)}
+                                    {recentRatings.length > 0 ? (
+                                        <ul className="space-y-2">
+                                            {recentRatings.map((rating) => (
+                                                <li key={rating.id} className="bg-gray-800 p-3 rounded-lg flex justify-between items-center">
+                                                    <div className="flex items-center">
+                                                        <span className="text-sm font-medium">{rating.store_name}</span>
+                                                        <div className="ml-3">
+                                                            {renderStars(rating.rating)}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <span className="text-xs text-gray-500">{rating.date}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
+                                                    <span className="text-xs text-gray-500">{new Date(rating.updated_at).toLocaleDateString()}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-gray-400">You have not submitted any recent ratings.</p>
+                                    )}
                                     <a href="/my-ratings" className="mt-4 inline-block text-indigo-400 hover:text-indigo-500 font-medium transition-colors">
                                         View All My Ratings →
                                     </a>
                                 </div>
                             </div>
 
-                            {/* Password Change Form */}
                             {isPasswordChange && (
-                                <div className="bg-gray-900 text-white p-6 rounded-2xl shadow-lg">
-                                    <h2 className="text-2xl font-bold mb-4">Update Password</h2>
+                                <div className="absolute inset-0 bg-gray-900 text-white p-6 rounded-2xl shadow-lg z-20">
+                                    <div className="text-2xl font-bold mb-4 flex justify-between">
+                                        <h2>Update Password</h2> <h2 onClick={()=>setIsPasswordChange(false)}>X</h2></div>
                                     <form onSubmit={handlePasswordUpdate} className="space-y-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-400" htmlFor="oldPassword">Old Password</label>

@@ -1,19 +1,6 @@
-import React, { useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { User, Shield, Users, Store, Star, Key, Lock, Mail, MapPin, Briefcase } from 'lucide-react';
-
-// Mock data for the Admin user and system stats
-const mockAdminData = {
-    name: "System Admin",
-    email: "admin@storerating.com",
-    address: "100 Server Street, Pune, India",
-    role: "System Administrator",
-    permissions: "Full system access",
-    systemStats: {
-        totalUsers: 1250,
-        totalStores: 89,
-        totalRatings: 5432,
-    },
-};
+import { UserContext } from "./Context.jsx";
 
 const AdminProfilePage = () => {
     const [isPasswordChange, setIsPasswordChange] = useState(false);
@@ -22,33 +9,79 @@ const AdminProfilePage = () => {
         newPassword: '',
         confirmNewPassword: ''
     });
+    const [totalStores, setTotalStores] = useState(0);
+    const [loadingStores, setLoadingStores] = useState(true);
+
+    const { user, allUsers, resetUserData,  allStores } = useContext(UserContext);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setPasswordData(prevState => ({ ...prevState, [name]: value }));
     };
 
-    const handlePasswordUpdate = (e) => {
+    const handlePasswordUpdate = async (e) => {
         e.preventDefault();
-        // In a real app, this would call an API to update the password
-        alert('Password update initiated. Check the console for mock data.');
-        console.log('Password change request:', passwordData);
-        setPasswordData({ oldPassword: '', newPassword: '', confirmNewPassword: '' });
-        setIsPasswordChange(false);
+        if (passwordData.newPassword !== passwordData.confirmNewPassword) {
+            alert("New password and confirm password do not match.");
+            return;
+        }
+
+        try {
+            const res = await fetch(`http://localhost:5000/api/v1/store_app/change-password/${user.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    oldPassword: passwordData.oldPassword,
+                    newPassword: passwordData.newPassword
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("Password updated successfully!");
+                setPasswordData({ oldPassword: '', newPassword: '', confirmNewPassword: '' });
+                setIsPasswordChange(false);
+            } else {
+                alert(data.message || "Failed to update password.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error updating password.");
+        }
     };
 
     const handleLogout = () => {
-        // In a real app, this would handle the user logout process
-        alert('Logging out...');
+        resetUserData();
         window.location.href = '/login';
     };
+
+    // Fetch total stores from API
+    useEffect(() => {
+        const fetchStores = async () => {
+            try {
+                setLoadingStores(true);
+                const res = await fetch('http://localhost:5000/api/v1/stores');
+                const data = await res.json();
+                if (data.success && Array.isArray(data.stores)) {
+                    setTotalStores(data.stores.length);
+                }
+            } catch (err) {
+                console.error(err);
+                setTotalStores(0);
+            } finally {
+                setLoadingStores(false);
+            }
+        };
+        fetchStores();
+    }, []);
 
     return (
         <div className="min-h-screen bg-gray-50 py-16 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-10">
-                    <h1 className="text-4xl font-extrabold text-gray-900">Hello Admin, {mockAdminData.name} 👑</h1>
+                    <h1 className="text-4xl font-extrabold text-gray-900">
+                        Hello Admin, {user.name} 👑
+                    </h1>
                     <p className="mt-2 text-lg text-gray-600">
                         Manage users, stores, and monitor the system.
                     </p>
@@ -62,24 +95,24 @@ const AdminProfilePage = () => {
                             <div className="flex items-center mb-4">
                                 <Shield size={40} className="text-red-500" />
                                 <div className="ml-4">
-                                    <h2 className="text-2xl font-bold">{mockAdminData.name}</h2>
+                                    <h2 className="text-2xl font-bold">{user.name}</h2>
                                     <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm">
-                                        {mockAdminData.role}
+                                        {user.type}
                                     </span>
                                 </div>
                             </div>
                             <div className="space-y-3 text-gray-300">
                                 <div className="flex items-center gap-2">
                                     <Mail size={20} className="text-gray-500" />
-                                    <span>{mockAdminData.email}</span>
+                                    <span>{user.email}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <MapPin size={20} className="text-gray-500" />
-                                    <span>{mockAdminData.address}</span>
+                                    <span>{user.address}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Briefcase size={20} className="text-gray-500" />
-                                    <span>Permissions: {mockAdminData.permissions}</span>
+                                    <span>Permissions: Full system access</span>
                                 </div>
                             </div>
                             <div className="mt-8">
@@ -138,15 +171,17 @@ const AdminProfilePage = () => {
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
                                     <div className="bg-gray-800 p-4 rounded-xl">
                                         <span className="text-gray-400 text-sm">Total Users</span>
-                                        <p className="text-3xl font-bold mt-1 text-indigo-400">{mockAdminData.systemStats.totalUsers}</p>
+                                        <p className="text-3xl font-bold mt-1 text-indigo-400">{allUsers.length}</p>
                                     </div>
                                     <div className="bg-gray-800 p-4 rounded-xl">
                                         <span className="text-gray-400 text-sm">Total Stores</span>
-                                        <p className="text-3xl font-bold mt-1 text-yellow-400">{mockAdminData.systemStats.totalStores}</p>
+                                        <p className="text-3xl font-bold mt-1 text-yellow-400">
+                                            {allStores.length}
+                                        </p>
                                     </div>
                                     <div className="bg-gray-800 p-4 rounded-xl">
                                         <span className="text-gray-400 text-sm">Total Ratings</span>
-                                        <p className="text-3xl font-bold mt-1 text-green-400">{mockAdminData.systemStats.totalRatings}</p>
+                                        <p className="text-3xl font-bold mt-1 text-green-400">5432</p>
                                     </div>
                                 </div>
                             </div>
