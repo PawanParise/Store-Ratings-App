@@ -46,23 +46,7 @@ npm run build
 npm run preview
 ```
 
-## 📁 Project Structure
 
-```
-client/
-├── public/
-├── src/
-│   ├── components/        # Reusable components
-│   ├── pages/            # Page components
-│   ├── hooks/            # Custom React hooks
-│   ├── store/            # State management
-│   ├── utils/            # Utility functions
-│   ├── assets/          # Static assets
-│   ├── App.jsx           # Main App component
-│   └── main.jsx           # Entry point
-├── vite.config.js        # Vite configuration
-└── package.json
-```
 
 ## 🎨 Styling
 
@@ -92,15 +76,5 @@ vercel --prod
 npm run build
 # Upload dist/ folder to Netlify
 ```
-
-## 🎯 Next Steps
-
-1. **Add Components**: Start building your app components
-2. **Set up Routing**: Add more routes in main.jsx
-3. **Configure API**: Set up your API endpoints if using Axios
-4. **Add State Management**: Implement Redux/Zustand if needed
-5. **Deploy**: Deploy to your preferred hosting service
-
----
 
 Built using React + Vite
