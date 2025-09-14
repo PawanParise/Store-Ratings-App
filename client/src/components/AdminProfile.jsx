@@ -1,6 +1,7 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { User, Shield, Users, Store, Star, Key, Lock, Mail, MapPin, Briefcase } from 'lucide-react';
 import { UserContext } from "./Context.jsx";
+import axios from 'axios';
 
 const AdminProfilePage = () => {
     const [isPasswordChange, setIsPasswordChange] = useState(false);
@@ -11,6 +12,7 @@ const AdminProfilePage = () => {
     });
     const [totalStores, setTotalStores] = useState(0);
     const [loadingStores, setLoadingStores] = useState(true);
+    const [ratings,setRatings] = useState([])
 
     const { user, allUsers, resetUserData,  allStores } = useContext(UserContext);
 
@@ -72,6 +74,17 @@ const AdminProfilePage = () => {
             }
         };
         fetchStores();
+        const fetchRatings = async () => {
+              try {
+                const res = await axios.get(
+                  "http://localhost:5000/api/v1/store_app/get-ratings"
+                );
+                setRatings(res.data.ratings || []);
+              } catch (err) {
+                console.error("Failed to fetch ratings:", err);
+              } 
+            };
+            fetchRatings();
     }, []);
 
     return (
@@ -181,7 +194,7 @@ const AdminProfilePage = () => {
                                     </div>
                                     <div className="bg-gray-800 p-4 rounded-xl">
                                         <span className="text-gray-400 text-sm">Total Ratings</span>
-                                        <p className="text-3xl font-bold mt-1 text-green-400">5432</p>
+                                        <p className="text-3xl font-bold mt-1 text-green-400">{ratings.length}</p>
                                     </div>
                                 </div>
                             </div>

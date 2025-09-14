@@ -20,6 +20,7 @@ const AdminDashboard = () => {
     const [users, setUsers] = useState([]);
     const [stores, setStores] = useState([])
     const [owners, setOwners] = useState([]); // only store owners
+    const [ratings, setRatings] = useState([])
 
     const { allUsers, setAllUserData, allStores } = useContext(UserContext)
 
@@ -55,6 +56,16 @@ const AdminDashboard = () => {
             .then((data) => {
                 if (data?.allStores) {
                     setStores(data.allStores); // ✅ set all users
+
+                }
+            })
+            .catch((err) => console.error("Error fetching stores:", err));
+
+             fetch(`http://localhost:5000/api/v1/store_app/get-ratings`)
+            .then((res) => res.json())
+            .then((data) => {
+                if (data?.ratings) {
+                    setRatings(data.ratings); // ✅ set all users
 
                 }
             })
@@ -184,7 +195,7 @@ const AdminDashboard = () => {
                         </div>
                         <div>
                             <p className="text-gray-500">Total Ratings</p>
-                            <h2 className="text-3xl font-bold text-gray-900">300+</h2>
+                            <h2 className="text-3xl font-bold text-gray-900">{ratings.length}</h2>
                         </div>
                     </div>
                 </div>
