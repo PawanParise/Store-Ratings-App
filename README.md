@@ -65,7 +65,9 @@ UI: Responsive card/grid layout
 ![WhatsApp Image 2025-09-14 at 18 48 29_2127a26e](https://github.com/user-attachments/assets/d5ec39ef-d571-437d-8be9-23fbc6f8d969)
 ![WhatsApp Image 2025-09-14 at 18 48 43_8019d404](https://github.com/user-attachments/assets/acda4cb3-4be3-4ef9-a322-ea8b4f086314)
 
-
+## Database
+<img width="1651" height="241" alt="image" src="https://github.com/user-attachments/assets/88769dc3-4b58-46a3-98aa-8187e13e8bf8" />
+<img width="1655" height="198" alt="image" src="https://github.com/user-attachments/assets/a710e7e5-a8f0-43fb-af5c-6c568a37959b" />
 
 ⚙️ Installation & Setup
 
