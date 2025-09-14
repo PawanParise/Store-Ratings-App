@@ -51,7 +51,9 @@ UI: Responsive card/grid layout
 
 📸 Screenshots
 
-(Add your app screenshots here)
+<img width="1900" height="905" alt="image" src="https://github.com/user-attachments/assets/383b0b28-4496-4772-b44b-2f422d33ab23" />
+<img width="1900" height="894" alt="image" src="https://github.com/user-attachments/assets/3e6a95df-3ba4-46f5-b604-8e02c35069a1" />
+<img width="1909" height="894" alt="image" src="https://github.com/user-attachments/assets/f73b1ac2-3340-4f34-9ef2-2130dc4116e2" />
 
 ⚙️ Installation & Setup
 
