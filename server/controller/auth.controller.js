@@ -18,7 +18,7 @@ export const Signup = async (req, res) => {
                 email VARCHAR(100) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
                 address VARCHAR(400),
-                role ENUM('admin','user','store_owner') DEFAULT 'user',
+                type  VARCHAR(255),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
@@ -37,7 +37,7 @@ export const Signup = async (req, res) => {
 
         // ✅ Insert user
         await pool.execute(
-            "INSERT INTO users (name, email, address, password, role) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO users (name, email, address, password, type) VALUES (?, ?, ?, ?, ?)",
             [name, email, address, hashedPassword, type]
         );
 
