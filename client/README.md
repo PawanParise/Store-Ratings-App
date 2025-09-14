@@ -71,10 +71,4 @@ npm install -g vercel
 vercel --prod
 ```
 
-### Netlify
-```bash
-npm run build
-# Upload dist/ folder to Netlify
-```
-
 Built using React + Vite
